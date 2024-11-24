@@ -57,7 +57,9 @@ export default {
           this.presetList = res.data.data;
           // 防止出现表格错位
           this.$nextTick(() => {
-            this.$refs.channelListTable.doLayout();
+            if(this.$refs.channelListTable){
+              this.$refs.channelListTable.doLayout();
+            }
           })
         }
 
