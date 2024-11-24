@@ -229,7 +229,6 @@ export default {
           }else {
             this.videoUrl = res.data.data.httpPath;
           }
-          console.log(222 )
           console.log(this.videoUrl )
         }
       }).catch((error) => {

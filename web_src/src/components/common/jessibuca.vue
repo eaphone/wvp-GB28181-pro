@@ -50,7 +50,6 @@ export default {
   created() {
     let paramUrl = decodeURIComponent(this.$route.params.url)
     this.$nextTick(() => {
-      console.log(2222)
       this.updatePlayerDomSize()
       window.onresize = this.updatePlayerDomSize
       if (typeof (this.videoUrl) == "undefined") {

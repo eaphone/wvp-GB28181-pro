@@ -238,7 +238,6 @@ export default {
         }
         this.queryChildList(parent);
       } else if (this.activeKey === '4') {
-        console.log(222)
         this.queryIndustryCodeList();
       } else if (this.activeKey === '5') {
         this.queryDeviceTypeList();

@@ -685,7 +685,7 @@ export default {
 
     },
     stopBroadcast() {
-      this.broadcastRtc.close();
+      if(this.broadcastRtc) this.broadcastRtc.close();
       this.broadcastStatus = -1;
       this.$axios({
         method: 'get',

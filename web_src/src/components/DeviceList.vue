@@ -325,7 +325,6 @@ export default {
       }).then( (res)=> {
         console.log(res)
         if (res.data.code === 0) {
-          console.log(2222)
           console.log(this.$refs.configInfo)
           this.$refs.configInfo.openDialog(res.data.data)
         }

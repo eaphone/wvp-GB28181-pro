@@ -22,7 +22,6 @@ export default {
   },
   created() {
     if (userService.getToken() == null){
-      console.log(22222)
       console.log(this.$route.path)
       try {
         if (this.excludeLoginCheck && this.excludeLoginCheck.length > 0) {
