@@ -404,8 +404,8 @@ VALUES (1, 'admin', '0', '2021-04-13 14:14:57', '2021-04-13 14:14:57');
 CREATE TABLE wvp_common_group
 (
     id               serial primary key,
-    device_id        varchar(50)  NOT NULL,
-    name             varchar(255) NOT NULL,
+    device_id        varchar(50) NOT NULL,
+    name             varchar(50) NOT NULL,
     parent_id        int,
     parent_device_id varchar(50) DEFAULT NULL,
     business_group   varchar(50)  NOT NULL,
@@ -418,12 +418,30 @@ CREATE TABLE wvp_common_group
 CREATE TABLE wvp_common_region
 (
     id               serial primary key,
-    device_id        varchar(50)  NOT NULL,
-    name             varchar(255) NOT NULL,
+    device_id        varchar(50) NOT NULL,
+    name             varchar(50) NOT NULL,
     parent_id        int,
     parent_device_id varchar(50) DEFAULT NULL,
     create_time      varchar(50)  NOT NULL,
     update_time      varchar(50)  NOT NULL,
     constraint uk_common_region_device_id unique (device_id)
 );
+alter table wvp_device default character set utf8mb4;
+alter table wvp_device_alarm default character set utf8mb4;
+alter table wvp_device_mobile_position default character set utf8mb4;
+alter table wvp_device_channel default character set utf8mb4;
+alter table wvp_media_server default character set utf8mb4;
+alter table wvp_platform default character set utf8mb4;
+alter table wvp_platform_channel default character set utf8mb4;
+alter table wvp_platform_group default character set utf8mb4;
+alter table wvp_platform_region default character set utf8mb4;
+alter table wvp_stream_proxy default character set utf8mb4;
+alter table wvp_stream_push default character set utf8mb4;
+alter table wvp_cloud_record default character set utf8mb4;
+alter table wvp_user default character set utf8mb4;
+alter table wvp_user_role default character set utf8mb4;
+alter table wvp_resources_tree default character set utf8mb4;
+alter table wvp_user_api_key default character set utf8mb4;
+alter table wvp_common_group default character set utf8mb4;
+alter table wvp_common_region default character set utf8mb4;
 
