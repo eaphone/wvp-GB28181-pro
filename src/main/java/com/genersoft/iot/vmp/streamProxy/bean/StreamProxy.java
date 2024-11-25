@@ -75,4 +75,8 @@ public class StreamProxy extends CommonGBChannel {
         this.setStreamProxyId(this.getId());
         return this;
     }
+
+    public Boolean getPulling(){
+        return pulling;
+    }
 }

@@ -1,5 +1,6 @@
 package com.genersoft.iot.vmp.gb28181.transmit.event.request.impl.message.notify.cmd;
 
+import com.genersoft.iot.vmp.common.StreamInfo;
 import com.genersoft.iot.vmp.common.VideoManagerConstants;
 import com.genersoft.iot.vmp.conf.DynamicTask;
 import com.genersoft.iot.vmp.conf.UserSetting;
@@ -10,6 +11,7 @@ import com.genersoft.iot.vmp.gb28181.transmit.event.request.impl.message.notify.
 import com.genersoft.iot.vmp.gb28181.utils.SipUtils;
 import com.genersoft.iot.vmp.gb28181.service.IDeviceService;
 import com.genersoft.iot.vmp.gb28181.service.IDeviceChannelService;
+import com.genersoft.iot.vmp.gb28181.service.IPlayService;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import com.genersoft.iot.vmp.media.service.IMediaServerService;
 import com.genersoft.iot.vmp.media.bean.MediaServer;
@@ -70,6 +72,8 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
 
     @Autowired
     private IMediaServerService mediaServerService;
+
+    @Autowired IPlayService playService;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -151,25 +155,27 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
                 int currentHour=LocalTime.now().getHour();
                 int currentMin=LocalTime.now().getMinute();
                 boolean isInStartTime=userSetting.getEndTime()==userSetting.getStartTime()||(currentHour>=userSetting.getStartTime()&&currentHour<=userSetting.getEndTime());
-                boolean isStartImmd=userSetting.isStartRecordImmidately()||currentMin==59||currentMin==1||currentMin==29||currentMin==31;
+                boolean isStartImmd=true||userSetting.isStartRecordImmidately()||currentMin==59||currentMin==1||currentMin==29||currentMin==31;
                 boolean isStartProxy=isInStartTime&&isStartImmd;
                 log.info("[设备上线-proxy]: isStartPorxy {}, isStartImmd {}, isStartTime {}", isStartProxy, isStartImmd, isInStartTime);
                 for (DeviceChannel channel: channels){
-                    boolean isEnalbeProxy=channel.getGbOwner()=="auto";
+                    boolean isEnalbeProxy="auto".equals(channel.getOwner());
                     String streamId=device.getDeviceId()+"_"+channel.getDeviceId();
                     StreamProxy proxy=streamProxyService.getStreamProxyByAppAndStream("auto",streamId);
-                    log.info("[设备上线-proxy]: isEnalbeProxy {}, proxy {}", isEnalbeProxy, proxy);
                     if (!isEnalbeProxy && (proxy!=null)){
                         log.info("[设备上线-proxy]: 删除channel {} 拉流代理", streamId);
                         streamProxyService.delete(proxy.getId());
                     }else if(proxy!=null){
-                        if(proxy.isEnable()!=isStartProxy){
+                        boolean pulling=channel.getStreamId()!=null;
+                        if(pulling!=isStartProxy){
                             if(isStartProxy){
-                                log.info("[设备上线-proxy]: 启动channel {} 拉流", streamId);
-                                streamProxyPlayService.startProxy(proxy);
+                                MediaServer mediaServer=mediaServerService.getMediaServerForMinimumLoad(null);
+                                playService.play(mediaServer,device.getDeviceId(),channel.getDeviceId(),null,null);
+                                StreamInfo streamInfo=streamProxyPlayService.startProxy(proxy);
+                                log.info("[设备上线-proxy]: 启动channel {} 拉流，结果 {}", streamId, streamInfo!=null);
                             }else{
-                                log.info("[设备上线-proxy]: 暂停channel {} 拉流", streamId);
                                 streamProxyPlayService.stopProxy(proxy);
+                                log.info("[设备上线-proxy]: 暂停channel {} 拉流", streamId);
                             }
                         }else{
                             log.info("[设备上线-proxy]: channel {} 拉流正常", streamId);
@@ -183,7 +189,7 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
                             proxy.setApp("auto");
                             proxy.setStream(streamId);
                             proxy.setMediaServerId(mediaServer.getId());
-                            proxy.setSrcUrl(String.format("rtsp://{}:{}/rtp/{}",mediaServer.getIp(),mediaServer.getRtspPort(),streamId));
+                            proxy.setSrcUrl(String.format("rtsp://%s:%s/rtp/%s",mediaServer.getIp(),mediaServer.getRtspPort(),streamId));
                             proxy.setTimeout(180);
                             proxy.setRtspType("TCP");
                             proxy.setEnable(isStartProxy);

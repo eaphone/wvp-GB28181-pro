@@ -166,7 +166,7 @@
             this.getStreamProxyList()
           }
 
-        }, 1000);
+        }, 10000);
       },
 			currentChange: function(val){
 				this.currentPage = val;
