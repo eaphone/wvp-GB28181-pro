@@ -9,7 +9,13 @@ import com.genersoft.iot.vmp.gb28181.transmit.event.request.impl.message.IMessag
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.impl.message.notify.NotifyMessageHandler;
 import com.genersoft.iot.vmp.gb28181.utils.SipUtils;
 import com.genersoft.iot.vmp.gb28181.service.IDeviceService;
+import com.genersoft.iot.vmp.gb28181.service.IDeviceChannelService;
 import com.genersoft.iot.vmp.utils.DateUtil;
+import com.genersoft.iot.vmp.media.service.IMediaServerService;
+import com.genersoft.iot.vmp.media.bean.MediaServer;
+import com.genersoft.iot.vmp.streamProxy.bean.StreamProxy;
+import com.genersoft.iot.vmp.streamProxy.service.IStreamProxyService;
+import com.genersoft.iot.vmp.streamProxy.service.IStreamProxyPlayService;
 import gov.nist.javax.sip.message.SIPRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -27,6 +33,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.time.LocalTime;
 
 /**
  * 状态信息(心跳)报送
@@ -51,6 +58,18 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
 
     @Autowired
     private DynamicTask dynamicTask;
+
+    @Autowired
+    private IDeviceChannelService channelService;
+
+    @Autowired
+    private IStreamProxyService streamProxyService;
+
+    @Autowired
+    private IStreamProxyPlayService streamProxyPlayService;
+
+    @Autowired
+    private IMediaServerService mediaServerService;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -127,6 +146,60 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
 
             if (device.isOnLine()) {
                 deviceService.updateDevice(device);
+
+                List<DeviceChannel> channels = channelService.queryChaneListByDeviceId(device.getDeviceId());
+                int currentHour=LocalTime.now().getHour();
+                int currentMin=LocalTime.now().getMinute();
+                boolean isInStartTime=userSetting.getEndTime()==userSetting.getStartTime()||(currentHour>=userSetting.getStartTime()&&currentHour<=userSetting.getEndTime());
+                boolean isStartImmd=userSetting.isStartRecordImmidately()||currentMin==59||currentMin==1||currentMin==29||currentMin==31;
+                boolean isStartProxy=isInStartTime&&isStartImmd;
+                log.info("[设备上线-proxy]: isStartPorxy {}, isStartImmd {}, isStartTime {}", isStartProxy, isStartImmd, isInStartTime);
+                for (DeviceChannel channel: channels){
+                    boolean isEnalbeProxy=channel.getGbOwner()=="auto";
+                    String streamId=device.getDeviceId()+"_"+channel.getDeviceId();
+                    StreamProxy proxy=streamProxyService.getStreamProxyByAppAndStream("auto",streamId);
+                    log.info("[设备上线-proxy]: isEnalbeProxy {}, proxy {}", isEnalbeProxy, proxy);
+                    if (!isEnalbeProxy && (proxy!=null)){
+                        log.info("[设备上线-proxy]: 删除channel {} 拉流代理", streamId);
+                        streamProxyService.delete(proxy.getId());
+                    }else if(proxy!=null){
+                        if(proxy.isEnable()!=isStartProxy){
+                            if(isStartProxy){
+                                log.info("[设备上线-proxy]: 启动channel {} 拉流", streamId);
+                                streamProxyPlayService.startProxy(proxy);
+                            }else{
+                                log.info("[设备上线-proxy]: 暂停channel {} 拉流", streamId);
+                                streamProxyPlayService.stopProxy(proxy);
+                            }
+                        }else{
+                            log.info("[设备上线-proxy]: channel {} 拉流正常", streamId);
+                        }
+                    }else if(isEnalbeProxy){
+                        MediaServer mediaServer=mediaServerService.getMediaServerForMinimumLoad(null);
+                        if (mediaServer!=null){
+                            log.info("[设备上线-proxy]: 为channel {} 添加拉流代理", streamId);
+                            proxy = new StreamProxy();
+                            proxy.setType("default");
+                            proxy.setApp("auto");
+                            proxy.setStream(streamId);
+                            proxy.setMediaServerId(mediaServer.getId());
+                            proxy.setSrcUrl(String.format("rtsp://{}:{}/rtp/{}",mediaServer.getIp(),mediaServer.getRtspPort(),streamId));
+                            proxy.setTimeout(180);
+                            proxy.setRtspType("TCP");
+                            proxy.setEnable(isStartProxy);
+                            proxy.setEnableAudio(true);
+                            proxy.setEnableMp4(true);
+                            proxy.setEnableRemoveNoneReader(false);
+                            proxy.setEnableDisableNoneReader(false);
+                            proxy.setGbName(channel.getDeviceId());
+                            streamProxyService.add(proxy);
+                        }else{
+                            log.info("[设备上线-proxy]: 为channel {} 添加拉流代理失败。找不到MediaServer", streamId);
+                        }
+                    }else{
+                    }
+                }
+
             } else {
                 if (userSetting.getGbDeviceOnline() == 1) {
                     // 对于已经离线的设备判断他的注册是否已经过期

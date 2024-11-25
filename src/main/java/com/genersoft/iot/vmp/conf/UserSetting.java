@@ -170,4 +170,9 @@ public class UserSetting {
      */
     private int gbDeviceOnline = 1;
 
+    private boolean startRecordImmidately = Boolean.FALSE;
+
+    private int startTime = 0;
+
+    private int endTime = 0;
 }
