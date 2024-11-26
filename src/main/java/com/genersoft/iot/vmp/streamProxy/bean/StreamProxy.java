@@ -77,6 +77,9 @@ public class StreamProxy extends CommonGBChannel {
     }
 
     public Boolean getPulling(){
+        if (pulling==null){
+            return false;
+        }
         return pulling;
     }
 }

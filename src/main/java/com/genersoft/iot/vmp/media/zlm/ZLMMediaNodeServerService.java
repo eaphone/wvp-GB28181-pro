@@ -441,7 +441,7 @@ public class ZLMMediaNodeServerService implements IMediaNodeServerService {
             }
             closeStreams(mediaServer, streamProxy.getApp(), streamProxy.getStream());
         }
-
+        
         JSONObject jsonObject = null;
         if ("ffmpeg".equalsIgnoreCase(streamProxy.getType())){
             if (streamProxy.getTimeout() == 0) {

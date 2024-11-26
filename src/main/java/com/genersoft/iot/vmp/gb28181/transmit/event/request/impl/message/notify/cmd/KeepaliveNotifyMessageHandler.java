@@ -44,7 +44,6 @@ import java.time.LocalTime;
 @Component
 public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent implements InitializingBean, IMessageHandler {
 
-
     private final static String cmdType = "Keepalive";
 
     private final ConcurrentLinkedQueue<SipMsgInfo> taskQueue = new ConcurrentLinkedQueue<>();
@@ -154,10 +153,10 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
                 List<DeviceChannel> channels = channelService.queryChaneListByDeviceId(device.getDeviceId());
                 int currentHour=LocalTime.now().getHour();
                 int currentMin=LocalTime.now().getMinute();
-                boolean isInStartTime=userSetting.getEndTime()==userSetting.getStartTime()||(currentHour>=userSetting.getStartTime()&&currentHour<=userSetting.getEndTime());
-                boolean isStartImmd=true||userSetting.isStartRecordImmidately()||currentMin==59||currentMin==1||currentMin==29||currentMin==31;
+                boolean isInStartTime=userSetting.getEndTime()==userSetting.getStartTime()||(currentHour>=userSetting.getStartTime()&&currentHour<userSetting.getEndTime());
+                boolean isStartImmd=userSetting.isStartRecordImmidately()||currentMin==59||currentMin==1||currentMin==29||currentMin==31;
                 boolean isStartProxy=isInStartTime&&isStartImmd;
-                log.info("[设备上线-proxy]: isStartPorxy {}, isStartImmd {}, isStartTime {}", isStartProxy, isStartImmd, isInStartTime);
+                log.info("[设备上线-proxy]: {} isStartPorxy {}, isStartImmd {}, isStartTime {}", device.getDeviceId(),isStartProxy, isStartImmd, isInStartTime);
                 for (DeviceChannel channel: channels){
                     boolean isEnalbeProxy="auto".equals(channel.getOwner());
                     String streamId=device.getDeviceId()+"_"+channel.getDeviceId();
@@ -166,16 +165,15 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
                         log.info("[设备上线-proxy]: 删除channel {} 拉流代理", streamId);
                         streamProxyService.delete(proxy.getId());
                     }else if(proxy!=null){
-                        boolean pulling=channel.getStreamId()!=null;
-                        if(pulling!=isStartProxy){
+                        if(proxy.getPulling()!=isStartProxy){
                             if(isStartProxy){
+                                log.info("[设备上线-proxy]: 启动channel {} 拉流", streamId);
                                 MediaServer mediaServer=mediaServerService.getMediaServerForMinimumLoad(null);
                                 playService.play(mediaServer,device.getDeviceId(),channel.getDeviceId(),null,null);
                                 StreamInfo streamInfo=streamProxyPlayService.startProxy(proxy);
-                                log.info("[设备上线-proxy]: 启动channel {} 拉流，结果 {}", streamId, streamInfo!=null);
                             }else{
-                                streamProxyPlayService.stopProxy(proxy);
                                 log.info("[设备上线-proxy]: 暂停channel {} 拉流", streamId);
+                                streamProxyPlayService.stopProxy(proxy);
                             }
                         }else{
                             log.info("[设备上线-proxy]: channel {} 拉流正常", streamId);
@@ -192,7 +190,7 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
                             proxy.setSrcUrl(String.format("rtsp://%s:%s/rtp/%s",mediaServer.getIp(),mediaServer.getRtspPort(),streamId));
                             proxy.setTimeout(180);
                             proxy.setRtspType("TCP");
-                            proxy.setEnable(isStartProxy);
+                            proxy.setEnable(true);
                             proxy.setEnableAudio(true);
                             proxy.setEnableMp4(true);
                             proxy.setEnableRemoveNoneReader(false);
@@ -205,7 +203,7 @@ public class KeepaliveNotifyMessageHandler extends SIPRequestProcessorParent imp
                     }else{
                     }
                 }
-
+                log.info("[设备上线-proxy]: {} 处理完成",device.getDeviceId());
             } else {
                 if (userSetting.getGbDeviceOnline() == 1) {
                     // 对于已经离线的设备判断他的注册是否已经过期
